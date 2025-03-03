@@ -56,6 +56,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       tabsetPanel(
+        id = "mainTabs",
         tabPanel("Time Series Analysis", plotlyOutput("timeSeriesPlot")),
         tabPanel("Regression Analysis", 
                  plotOutput("regPlot"),
@@ -84,7 +85,7 @@ server <- function(input, output, session) {
       geom_line(color = "blue") +
       geom_point() +
       labs(title = paste(input$source, "Production Over Time"),
-           x = "Year", y = "Production")
+           x = "Year (Gyr)", y = "Production (GWh)")
     ggplotly(p)
   })
   
@@ -93,7 +94,7 @@ server <- function(input, output, session) {
       filter(!is.na(gdp)) %>% 
       group_by(Country, Year) %>% 
       summarize(GDP = sum(gdp, na.rm = TRUE),
-                RenewableProduction = sum(TotalRenewables, na.rm = TRUE))
+                RenewableProduction = sum(TotalRenewables, na.rm = TRUE), .groups = "drop")
     lm(RenewableProduction ~ GDP, data = regData)
   })
   
@@ -102,12 +103,12 @@ server <- function(input, output, session) {
       filter(!is.na(gdp)) %>% 
       group_by(Country, Year) %>% 
       summarize(GDP = sum(gdp, na.rm = TRUE),
-                RenewableProduction = sum(TotalRenewables, na.rm = TRUE))
+                RenewableProduction = sum(TotalRenewables, na.rm = TRUE), .groups = "drop")
     ggplot(regData, aes(x = GDP, y = RenewableProduction)) +
       geom_point() +
       geom_smooth(method = "lm", se = FALSE, color = "red") +
       labs(title = "Regression: GDP vs Renewable Electricity Production",
-           x = "GDP (proxy for Investment)", y = "Renewable Production")
+           x = "GDP (USD)", y = "Renewable Production (GWh)")
   })
   
   output$regSummary <- renderPrint({
