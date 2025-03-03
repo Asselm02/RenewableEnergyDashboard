@@ -56,6 +56,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       tabsetPanel(
+        id = "mainTabs",
         tabPanel("Time Series Analysis", plotlyOutput("timeSeriesPlot")),
         tabPanel("Regression Analysis", 
                  plotOutput("regPlot"),
@@ -77,14 +78,22 @@ server <- function(input, output, session) {
   })
   
   output$timeSeriesPlot <- renderPlotly({
+    # Group by Year and Country for individual country lines
     tsData <- filteredData() %>% 
+      group_by(Year, Country) %>% 
+      summarize(Production = sum(get(input$source), na.rm = TRUE), .groups = "drop")
+    # Total production line
+    totalData <- filteredData() %>% 
       group_by(Year) %>% 
-      summarize(Production = sum(get(input$source), na.rm = TRUE))
-    p <- ggplot(tsData, aes(x = Year, y = Production)) +
-      geom_line(color = "blue") +
-      geom_point() +
+      summarize(Total = sum(get(input$source), na.rm = TRUE))
+    
+    p <- ggplot() +
+      geom_line(data = tsData, aes(x = Year, y = Production, color = Country), size = 1) +
+      geom_point(data = tsData, aes(x = Year, y = Production, color = Country)) +
+      geom_line(data = totalData, aes(x = Year, y = Total), color = "black", size = 1.2, linetype = "dashed") +
       labs(title = paste(input$source, "Production Over Time"),
            x = "Year", y = "Production")
+    
     ggplotly(p)
   })
   
@@ -93,7 +102,7 @@ server <- function(input, output, session) {
       filter(!is.na(gdp)) %>% 
       group_by(Country, Year) %>% 
       summarize(GDP = sum(gdp, na.rm = TRUE),
-                RenewableProduction = sum(TotalRenewables, na.rm = TRUE))
+                RenewableProduction = sum(TotalRenewables, na.rm = TRUE), .groups = "drop")
     lm(RenewableProduction ~ GDP, data = regData)
   })
   
@@ -102,7 +111,7 @@ server <- function(input, output, session) {
       filter(!is.na(gdp)) %>% 
       group_by(Country, Year) %>% 
       summarize(GDP = sum(gdp, na.rm = TRUE),
-                RenewableProduction = sum(TotalRenewables, na.rm = TRUE))
+                RenewableProduction = sum(TotalRenewables, na.rm = TRUE), .groups = "drop")
     ggplot(regData, aes(x = GDP, y = RenewableProduction)) +
       geom_point() +
       geom_smooth(method = "lm", se = FALSE, color = "red") +
