@@ -39,23 +39,28 @@ ui <- fluidPage(
   titlePanel("Renewable Energy Trends Dashboard"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("country", "Select Country",
-                  choices = unique(renewable_data$Country),
-                  selected = unique(renewable_data$Country)[1],
-                  multiple = TRUE),
-      sliderInput("year", "Select Year Range",
-                  min = 2000,
-                  max = max(renewable_data$Year, na.rm = TRUE),
-                  value = c(2000, max(renewable_data$Year, na.rm = TRUE)),
-                  step = 1,
-                  sep = ""),
-      selectInput("source", "Select Renewable Source",
-                  choices = c("Solar", "Wind", "Hydro", "TotalRenewables"),
-                  selected = "Solar",
-                  multiple = FALSE)
+      # Show controls only when NOT in a map tab.
+      conditionalPanel(
+        condition = "input.mainTabs == 'Time Series Analysis' || input.mainTabs == 'Regression Analysis'",
+        selectInput("country", "Select Country",
+                    choices = unique(renewable_data$Country),
+                    selected = unique(renewable_data$Country)[1],
+                    multiple = TRUE),
+        sliderInput("year", "Select Year Range",
+                    min = 2000,
+                    max = max(renewable_data$Year, na.rm = TRUE),
+                    value = c(2000, max(renewable_data$Year, na.rm = TRUE)),
+                    step = 1,
+                    sep = ""),
+        selectInput("source", "Select Renewable Source",
+                    choices = c("Solar", "Wind", "Hydro", "TotalRenewables"),
+                    selected = "Solar",
+                    multiple = FALSE)
+      )
     ),
     mainPanel(
       tabsetPanel(
+        id = "mainTabs",
         tabPanel("Time Series Analysis", plotlyOutput("timeSeriesPlot")),
         tabPanel("Regression Analysis", 
                  plotOutput("regPlot"),
