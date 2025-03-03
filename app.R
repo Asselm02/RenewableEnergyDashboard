@@ -41,6 +41,7 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput("country", "Select Country",
                   choices = unique(renewable_data$Country),
+                  # Allow no selection; handled in server.
                   selected = unique(renewable_data$Country)[1],
                   multiple = TRUE),
       sliderInput("year", "Select Year Range",
@@ -56,6 +57,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       tabsetPanel(
+        id = "mainTabs",
         tabPanel("Time Series Analysis", plotlyOutput("timeSeriesPlot")),
         tabPanel("Regression Analysis", 
                  plotOutput("regPlot"),
@@ -70,8 +72,10 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   filteredData <- reactive({
+    # If no country is selected, use all available countries.
+    sel <- if(length(input$country) == 0) unique(renewable_data$Country) else input$country
     renewable_data %>% 
-      filter(Country %in% input$country,
+      filter(Country %in% sel,
              Year >= input$year[1],
              Year <= input$year[2])
   })
