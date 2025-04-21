@@ -35,24 +35,48 @@ computeDelta4yr <- function(energy_col) {
   return(deltaData)
 }
 
+# Reusable function to render maps
+createDeltaMap <- function(energyType, popupLabel) {
+  deltaData <- computeDelta4yr(energyType)
+  mapData <- merge(country_coords, deltaData, by = "Country", all.x = TRUE)
+  pal <- colorNumeric(palette = "RdYlGn", domain = c(0, 100))
+  leaflet(mapData) %>%
+    addTiles() %>%
+    addCircleMarkers(
+      lat = ~Latitude,
+      lng = ~Longitude,
+      radius = 5,
+      color = ~pal(Delta),
+      stroke = FALSE,
+      fillOpacity = 0.8,
+      popup = ~paste("Country:", Country, "<br>", popupLabel, round(Delta, 2), "%")
+    ) %>%
+    addLegend("bottomright", pal = pal, values = ~Delta,
+              title = paste(energyType, "4-yr Delta (%)"), opacity = 1)
+}
+
 ui <- fluidPage(
   titlePanel("Renewable Energy Trends Dashboard"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("country", "Select Country",
-                  choices = unique(renewable_data$Country),
-                  selected = unique(renewable_data$Country)[1],
-                  multiple = TRUE),
-      sliderInput("year", "Select Year Range",
-                  min = 2000,
-                  max = max(renewable_data$Year, na.rm = TRUE),
-                  value = c(2000, max(renewable_data$Year, na.rm = TRUE)),
-                  step = 1,
-                  sep = ""),
-      selectInput("source", "Select Renewable Source",
-                  choices = c("Solar", "Wind", "Hydro", "TotalRenewables"),
-                  selected = "Solar",
-                  multiple = FALSE)
+      # Show controls only when NOT in a map tab.
+      conditionalPanel(
+        condition = "input.mainTabs == 'Time Series Analysis' || input.mainTabs == 'Regression Analysis'",
+        selectInput("country", "Select Country",
+                    choices = unique(renewable_data$Country),
+                    selected = unique(renewable_data$Country)[1],
+                    multiple = TRUE),
+        sliderInput("year", "Select Year Range",
+                    min = 2000,
+                    max = max(renewable_data$Year, na.rm = TRUE),
+                    value = c(2000, max(renewable_data$Year, na.rm = TRUE)),
+                    step = 1,
+                    sep = ""),
+        selectInput("source", "Select Renewable Source",
+                    choices = c("Solar", "Wind", "Hydro", "TotalRenewables"),
+                    selected = "Solar",
+                    multiple = FALSE)
+      )
     ),
     mainPanel(
       tabsetPanel(
@@ -78,14 +102,26 @@ server <- function(input, output, session) {
   })
   
   output$timeSeriesPlot <- renderPlotly({
+    # Group by Year and Country for individual country lines
     tsData <- filteredData() %>% 
+      group_by(Year, Country) %>% 
+      summarize(Production = sum(get(input$source), na.rm = TRUE), .groups = "drop")
+    # Total production line
+    totalData <- filteredData() %>% 
       group_by(Year) %>% 
-      summarize(Production = sum(get(input$source), na.rm = TRUE))
-    p <- ggplot(tsData, aes(x = Year, y = Production)) +
-      geom_line(color = "blue") +
-      geom_point() +
+      summarize(Total = sum(get(input$source), na.rm = TRUE))
+    
+    p <- ggplot() +
+      geom_line(data = tsData, aes(x = Year, y = Production, color = Country), size = 1) +
+      geom_point(data = tsData, aes(x = Year, y = Production, color = Country)) +
+      geom_line(data = totalData, aes(x = Year, y = Total), color = "black", size = 1.2, linetype = "dashed") +
       labs(title = paste(input$source, "Production Over Time"),
-           x = "Year (Gyr)", y = "Production (GWh)")
+labs(
+  title = paste(input$source, "Production Over Time"),
+  x     = "Year",
+  y     = "Production"
+)
+
     ggplotly(p)
   })
   
@@ -108,7 +144,13 @@ server <- function(input, output, session) {
       geom_point() +
       geom_smooth(method = "lm", se = FALSE, color = "red") +
       labs(title = "Regression: GDP vs Renewable Electricity Production",
-           x = "GDP (USD)", y = "Renewable Production (GWh)")
+labs(
+  title = "Regression: GDP vs Renewable Electricity Production",
+  x     = "GDP (USD)",
+  y     = "Renewable Production (GWh)"
+) +
+theme_minimal()
+
   })
   
   output$regSummary <- renderPrint({
@@ -116,45 +158,15 @@ server <- function(input, output, session) {
   })
   
   output$trendMapSolar <- renderLeaflet({
-    solarDelta <- computeDelta4yr("Solar")
-    mapData <- merge(country_coords, solarDelta, by = "Country", all.x = TRUE)
-    pal <- colorNumeric(palette = "RdYlGn", domain = c(0, 100))
-    leaflet(mapData) %>%
-      addTiles() %>%
-      addCircleMarkers(lat = ~Latitude, lng = ~Longitude, radius = 5,
-                       color = ~pal(Delta), stroke = FALSE, fillOpacity = 0.8,
-                       popup = ~paste("Country:", Country, "<br>",
-                                      "Solar 4-yr Change:", round(Delta, 2), "%")) %>%
-      addLegend("bottomright", pal = pal, values = ~Delta,
-                title = "Solar 4-yr Delta (%)", opacity = 1)
+    createDeltaMap("Solar", "Solar 4-yr Change:")
   })
   
   output$trendMapWind <- renderLeaflet({
-    windDelta <- computeDelta4yr("Wind")
-    mapData <- merge(country_coords, windDelta, by = "Country", all.x = TRUE)
-    pal <- colorNumeric(palette = "RdYlGn", domain = c(0, 100))
-    leaflet(mapData) %>%
-      addTiles() %>%
-      addCircleMarkers(lat = ~Latitude, lng = ~Longitude, radius = 5,
-                       color = ~pal(Delta), stroke = FALSE, fillOpacity = 0.8,
-                       popup = ~paste("Country:", Country, "<br>",
-                                      "Wind 4-yr Change:", round(Delta, 2), "%")) %>%
-      addLegend("bottomright", pal = pal, values = ~Delta,
-                title = "Wind 4-yr Delta (%)", opacity = 1)
+    createDeltaMap("Wind", "Wind 4-yr Change:")
   })
   
   output$trendMapHydro <- renderLeaflet({
-    hydroDelta <- computeDelta4yr("Hydro")
-    mapData <- merge(country_coords, hydroDelta, by = "Country", all.x = TRUE)
-    pal <- colorNumeric(palette = "RdYlGn", domain = c(0, 100))
-    leaflet(mapData) %>%
-      addTiles() %>%
-      addCircleMarkers(lat = ~Latitude, lng = ~Longitude, radius = 5,
-                       color = ~pal(Delta), stroke = FALSE, fillOpacity = 0.8,
-                       popup = ~paste("Country:", Country, "<br>",
-                                      "Water 4-yr Change:", round(Delta, 2), "%")) %>%
-      addLegend("bottomright", pal = pal, values = ~Delta,
-                title = "Water 4-yr Delta (%)", opacity = 1)
+    createDeltaMap("Hydro", "Water 4-yr Change:")
   })
 }
 
