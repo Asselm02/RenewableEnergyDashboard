@@ -116,8 +116,12 @@ server <- function(input, output, session) {
       geom_point(data = tsData, aes(x = Year, y = Production, color = Country)) +
       geom_line(data = totalData, aes(x = Year, y = Total), color = "black", size = 1.2, linetype = "dashed") +
       labs(title = paste(input$source, "Production Over Time"),
-           x = "Year", y = "Production")
-    
+labs(
+  title = paste(input$source, "Production Over Time"),
+  x     = "Year",
+  y     = "Production"
+)
+
     ggplotly(p)
   })
   
@@ -140,8 +144,13 @@ server <- function(input, output, session) {
       geom_point() +
       geom_smooth(method = "lm", se = FALSE, color = "red") +
       labs(title = "Regression: GDP vs Renewable Electricity Production",
-           x = "GDP (USD)", y = "Renewable Production (GWh)") +
-      theme_minimal()
+labs(
+  title = "Regression: GDP vs Renewable Electricity Production",
+  x     = "GDP (USD)",
+  y     = "Renewable Production (GWh)"
+) +
+theme_minimal()
+
   })
   
   output$regSummary <- renderPrint({
