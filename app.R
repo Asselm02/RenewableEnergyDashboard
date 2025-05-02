@@ -5,7 +5,7 @@ library(dplyr)
 library(leaflet)
 
 # Load data
-enewable_data <- read.csv("data/energy-data.csv", stringsAsFactors = FALSE)
+renewable_data <- read.csv("data/energy-data.csv", stringsAsFactors = FALSE)
 country_coords <- read.csv("data/country_coords.csv", stringsAsFactors = FALSE)
 
 # Rename columns for consistency
